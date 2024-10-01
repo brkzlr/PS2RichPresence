@@ -1,0 +1,43 @@
+#!/bin/bash
+# Copyright (C) 2024 brkzlr <brksys@icloud.com>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+SCRIPTDIR=$(cd -- "$(dirname -- "$0")" && pwd -P)
+cd $SCRIPTDIR
+if [ ! -d ".git" ]; then
+	echo "Error! Could not find \".git\" folder!"
+	echo "This can happen if you downloaded the ZIP file instead of cloning through git."
+	exit 1
+fi
+
+# Cleanup
+rm -rf include lib bin build extern/discord-rpc/build
+
+# Compile and install discord-rpc
+git submodule update --init
+mkdir -p extern/discord-rpc/build
+cd extern/discord-rpc/build
+cmake .. -DCMAKE_INSTALL_PREFIX=$SCRIPTDIR -DBUILD_SHARED_LIBS=ON
+cmake --build . --config Release --target install
+cd $SCRIPTDIR/include
+mkdir Discord
+mv *.h Discord/
+
+# Compile PS2RichPresence
+cd $SCRIPTDIR
+mkdir build
+cd build
+cmake -DCMAKE_BUILD_TYPE=Release ..
+make

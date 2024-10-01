@@ -1,0 +1,16 @@
+bin
+build
+
+# These two will be created by discord-rpc CMake
+include
+lib
+
+# Ignore all CMake/Make stuff except Lists
+compile_commands.json
+*[Mm]ake*
+!CMakeLists.txt
+
+# Ignore all dot files/folders except a few important files
+.*
+!.gitignore
+!.clang-format
