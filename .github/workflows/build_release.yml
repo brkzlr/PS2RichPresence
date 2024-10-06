@@ -14,8 +14,8 @@ jobs:
         uses: actions/checkout@v4
       - name: Install Dependencies
         run: | 
-            apt update -y
-            apt install -y cmake libjson-c-dev
+            sudo apt-get update -y
+            sudo apt-get install -y cmake libjson-c-dev
       - name: Build
         run: |
             export CI_RUNNING=TRUE
