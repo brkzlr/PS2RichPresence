@@ -12,5 +12,6 @@ compile_commands.json
 
 # Ignore all dot files/folders except a few important files
 .*
+!.github
 !.gitignore
 !.clang-format

@@ -1,0 +1,30 @@
+name: Build Release
+
+on:
+  push:
+    tags:
+      - "v*.*"
+      - "v*.*.*"
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Dependencies
+        run: | 
+            apt update -y
+            apt install -y cmake libjson-c-dev
+      - name: Build
+        run: |
+            export CI_RUNNING=TRUE
+            ./compile.sh
+            cmake --install build
+            cd /opt/PS2RichPresence
+            zip ps2richpresence-linux-x86.zip *
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          make_latest: true
+          files: /opt/PS2RichPresence/ps2richpresence-linux-x86.zip

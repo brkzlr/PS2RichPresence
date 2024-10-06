@@ -11,6 +11,7 @@ This program **must** be run from the PC that acts as your PS2 SMB server, as it
 ## Supported OS
 Compatible OS that this will compile and run on are as follows:
 - Linux
+  - If you download the release `.zip` instead of compiling the program yourself, you need to have glibc version equal to or higher than `2.35` as the zip is created using Ubuntu 22.04 as base.
 - MacOS
   - Even though this program will compile and run fine on MacOS, you will need to install the open source Samba suite on modern MacOS versions as Apple removed it in favour of their own implementation.
   - If you don't install Samba, then the program won't do anything as `smbstatus` is missing by default on modern MacOS.
@@ -31,7 +32,7 @@ You will need to create your own Discord application (just like you would do cre
 
 ## Requirements
 ### Compilation:
-- CMake 3.21 or higher.
+- CMake 3.22 or higher.
 - C compiler suite that supports C11 standard or higher.
   - Any modern GCC or Clang toolkit will do.
 - Discord-RPC library.
@@ -48,7 +49,7 @@ You will need to create your own Discord application (just like you would do cre
 ### Runtime:
 You need to have the Samba suite installed to access the required `smbstatus` command that is used by the program.
 
-You **should already have this** as you should be compiling this on the same PC that is your PS2 SMB server where ideally Samba would already be used (looking at you MacOS).
+You **should already have this** as you should be compiling/downloading this on the same PC that is your PS2 SMB server where ideally Samba would already be used (looking at you MacOS).
 
 You just need to have [Jansson](https://github.com/akheron/jansson) library support enabled in Samba, so double check if it comes enabled, otherwise you might need to compile Samba with this support yourself.
 You can check this by trying to run `sudo smbstatus -L -j` and see if it gives an error telling you about libjansson.
@@ -68,10 +69,16 @@ cd PS2RichPresence
 ```
 Obviously you must have `git` installed for this. Downloading the ZIP file won't work as you need the discord-rpc submodule from this repo and submodules are not included in ZIP downloads.
 
+You can also run `sudo cmake --install build` in the same folder after running `./compile.sh` if you want to have PS2RichPresence installed to `/opt/PS2RichPresence`.
+You can delete the cloned folder afterwards and remove all compilation dependencies. The program will run just fine from there as the installation process makes it portable.
+
 ## Usage
-Run the following command in the same folder that you ran `compile.sh` from:
+Run the command outlined below in any of the following locations:
+- Resulting `bin` folder if you locally compiled.
+- Folder where you extracted the release `.zip` to.
+- `/opt/PS2RichPresence` if you ran the installation command in the previous section.
 ```
-sudo -E bin/ps2rpc -a (Discord application ID) -s "(PS2 samba share path)" [-t Refresh period in seconds]
+sudo -E ./ps2rpc -a (Discord application ID) -s "(PS2 samba share path)" [-t Refresh period in seconds]
 ```
 - Discord application ID: This is the App ID that you copied in the **Prerequisites** steps.
 - PS2 samba share path: This is the path of the OPL folder that contains "CD", "DVD" and such.

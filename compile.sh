@@ -16,28 +16,24 @@
 
 SCRIPTDIR=$(cd -- "$(dirname -- "$0")" && pwd -P)
 cd $SCRIPTDIR
-if [ ! -d ".git" ]; then
+if [ ! -d ".git" ] && [ -z "$CI_RUNNING" ]; then
 	echo "Error! Could not find \".git\" folder!"
 	echo "This can happen if you downloaded the ZIP file instead of cloning through git."
 	exit 1
 fi
 
-# Cleanup
-rm -rf include lib bin build extern/discord-rpc/build
-
 # Compile and install discord-rpc
-git submodule update --init
-mkdir -p extern/discord-rpc/build
-cd extern/discord-rpc/build
-cmake .. -DCMAKE_INSTALL_PREFIX=$SCRIPTDIR -DBUILD_SHARED_LIBS=ON
-cmake --build . --config Release --target install
-cd $SCRIPTDIR/include
-mkdir Discord
-mv *.h Discord/
+if [ ! -d "$SCRIPTDIR/lib" ]; then
+	git submodule update --init
+	cd extern/discord-rpc/
+	cmake -B build -DCMAKE_INSTALL_PREFIX=$SCRIPTDIR -DBUILD_SHARED_LIBS=ON || exit 1
+	cmake --build build --config Release --target install || exit 1
+	cd $SCRIPTDIR/include
+	mkdir -p Discord
+	mv *.h Discord/
+fi
 
 # Compile PS2RichPresence
 cd $SCRIPTDIR
-mkdir build
-cd build
-cmake -DCMAKE_BUILD_TYPE=Release ..
-make
+cmake -DCMAKE_BUILD_TYPE=Release -B build || exit 1
+cmake --build build || exit 1
