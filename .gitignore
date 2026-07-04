@@ -1,14 +1,22 @@
-bin
-build
+/bin/
+build/
+/include/
+/lib/
+/release/
 
-# These two will be created by discord-rpc CMake
-include
-lib
+# PS2 build artifacts
+*.elf
+*.o
+*.d
 
-# Ignore all CMake/Make stuff except Lists
+# Local editor/tool caches and generated compile databases
+/.cache/
 compile_commands.json
-*[Mm]ake*
+
+# Ignore generated Makefiles except the PS2 source Makefile
+Makefile
 !CMakeLists.txt
+!ps2/**/Makefile
 
 # Ignore all dot files/folders except a few important files
 .*

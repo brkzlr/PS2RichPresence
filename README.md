@@ -1,24 +1,15 @@
 # PS2RichPresence
-This is a program that will set your Discord rich presence to whatever game your PS2 is playing through OPL with an SMB connection using the open source [Samba](https://www.samba.org/) suite available on Unix platforms.
+This is a program that will set your Discord rich presence to whatever game your PS2 is playing, using a small packet sent by the PS2 over your local network when a game starts.
 
 ## How does it work?
-It uses [Discord-RPC](https://github.com/brkzlr/discord-rpc) library to communicate with your locally open Discord client and set rich presence details using your own Discord application ID. (See [Prerequisites](#prerequisites) below)
+When the PS2 starts a game, the PS2 side sends a UDP broadcast packet with the game's title ID and/or display name. This program listens for that packet and uses the [Discord-RPC](https://github.com/brkzlr/discord-rpc) library to communicate with your locally open Discord client and set rich presence details using your own Discord application ID. (See [Prerequisites](#prerequisites) below)
 
-The presence details will be the iso/zso filename (excluding the ".iso"/".zso" extension) of the currently opened game on the PS2, which is grabbed using `smbstatus` included in the Samba suite.
-
-This program **must** be run from the PC that acts as your PS2 SMB server, as it relies on `smbstatus` checking your locally accessed SMB files.
+The packet format is defined in [protocol/ps2rp_protocol.h](protocol/ps2rp_protocol.h). The PS2 side broadcasts it, so there is no PC IP to enter anywhere. Just run the listener on a computer in the same network as the PS2.
 
 ## Supported OS
-Compatible OS that this will compile and run on are as follows:
 - Linux
   - If you download the release `.zip` instead of compiling the program yourself, you need to have glibc version equal to or higher than `2.35` as the zip is created using Ubuntu 22.04 as base.
 - MacOS
-  - Even though this program will compile and run fine on MacOS, you will need to install the open source Samba suite on modern MacOS versions as Apple removed it in favour of their own implementation.
-  - If you don't install Samba, then the program won't do anything as `smbstatus` is missing by default on modern MacOS.
-  - Check [Runtime](#runtime) below for more info about this.
-
-Windows is currently **not supported** as the methods I use in this program are not compatible with the way Windows does shares.
-Windows support is not off the table though, I just didn't bother with it so far as I mainly made the program for myself and I don't use the OS.
 
 ## Prerequisites
 You will need to create your own Discord application (just like you would do creating a bot if you know how) so you can receive an application ID which is used to display the rich presence.
@@ -33,35 +24,17 @@ You will need to create your own Discord application (just like you would do cre
 ## Requirements
 ### Compilation:
 - CMake 3.22 or higher.
-- C compiler suite that supports C11 standard or higher.
+- C compiler with C11 support, plus a C++ compiler for discord-rpc.
   - Any modern GCC or Clang toolkit will do.
+- `make`.
+- Docker, unless you have a local ps2dev toolchain installed and `PS2SDK` exported.
 - Discord-RPC library.
   - A compilation fixed fork is already included in this repo as a submodule, so you don't need to do anything about this.
-- [JSON-C](https://github.com/json-c/json-c) library.
-  - You can compile it yourself or just install it using your package manager. A few examples below:
-    - Debian/Ubuntu based distros: `sudo apt install libjson-c-dev`
-    - Fedora: `sudo dnf install json-c-devel`
-    - Arch Linux: `sudo pacman -S json-c`
-    - MacOS: `brew install json-c`
 - A PC that won't crash and burn when compiling code.
   - Not burning is optional, just make sure it won't crash during compilation and have your fire extinguisher ready :)
 
-### Runtime:
-You need to have the Samba suite installed to access the required `smbstatus` command that is used by the program.
-
-You **should already have this** as you should be compiling/downloading this on the same PC that is your PS2 SMB server where ideally Samba would already be used (looking at you MacOS).
-
-You just need to have [Jansson](https://github.com/akheron/jansson) library support enabled in Samba, so double check if it comes enabled, otherwise you might need to compile Samba with this support yourself.
-You can check this by trying to run `sudo smbstatus -L -j` and see if it gives an error telling you about libjansson.
-
-The steps below are to install Samba if you don't already have it installed for whatever reason, but ideally you should be setting up Samba for PS2 beforehand and skipping these steps.
-- Linux: It should come included with most Linux distributions but if not, you can just install it using your package manager. The package should be named `samba` on most of them.
-- MacOS: Use [Brew](https://brew.sh/) to install Samba by running `brew install samba`.
-  - You might need some additional steps to make it run. This [StackExchange](https://apple.stackexchange.com/a/459346) post might be helpful.
-  - From my personal testing, Brew doesn't seem to include Jansson library supported version of Samba, so you might need to compile it yourself if it's the same case for you.
-
 ## Building
-Just run `compile.sh` inside the folder after cloning the repo using git and it will handle everything for you, if you fulfill the [compilation requirements](#compilation) that is.
+Just run `compile.sh` inside the folder after cloning the repo using git and it will handle everything for you, if you fulfill the [compilation requirements](#compilation) that is. It builds discord-rpc, the PC listener, the title database copy and the PS2 disc launcher. Use `./compile.sh --skip-ps2` if you only want the PC listener.
 ```
 git clone --recursive https://github.com/brkzlr/PS2RichPresence
 cd PS2RichPresence
@@ -72,32 +45,37 @@ Obviously you must have `git` installed for this. Downloading the ZIP file won't
 You can also run `sudo cmake --install build` in the same folder after running `./compile.sh` if you want to have PS2RichPresence installed to `/opt/PS2RichPresence`.
 You can delete the cloned folder afterwards and remove all compilation dependencies. The program will run just fine from there as the installation process makes it portable.
 
+The PS2 disc launcher needs the ps2dev toolchain. `compile.sh` uses a local ps2dev install when available. Otherwise it builds the ELF through Docker. This writes `bin/ps2rp.elf`.
+
 ## Usage
 Run the command outlined below in any of the following locations:
 - Resulting `bin` folder if you locally compiled.
 - Folder where you extracted the release `.zip` to.
 - `/opt/PS2RichPresence` if you ran the installation command in the previous section.
 ```
-sudo -E ./ps2rpc -a (Discord application ID) -s "(PS2 samba share path)" [-t Refresh period in seconds]
+./ps2rpc -a (Discord application ID) [-p Announce port] [-d title_db.tsv] [-u title_overrides.tsv] [-A image_asset_key] [-C]
 ```
 - Discord application ID: This is the App ID that you copied in the **Prerequisites** steps.
-- PS2 samba share path: This is the path of the OPL folder that contains "CD", "DVD" and such.
-  - For example: If your OPL folder is in `/mnt/PS2OPL` then you'll type `-s "/mnt/PS2OPL"`.
-  - Using double quotes is mandatory if your path has spaces in it.
-- Refresh period in seconds: This is an optional parameter where you can choose how often the program will check Samba for an active game.
-  - Omitting this parameter will use a default of 10 seconds, which is good enough for most cases.
-  - Setting it too low can cause your rich presence to be cleared a couple of times during the game's boot process as OPL unloads and loads the file several times.
+- Announce port: Optional parameter to change the UDP port the program listens on. Defaults to `50003`, only change it if you also change it on the PS2 side.
+- Title database: Optional path to a TSV title database. By default, the program loads `ps2_titles.tsv` from the same folder as `ps2rpc`.
+- Title overrides: Optional TSV file loaded after the default title database. Use one `title_id<TAB>display name` entry per line. Title IDs may be written as `SLUS-20273` or `SLUS_202.73`.
+- Image asset key: Optional Discord application asset key to use as the large image, such as `ps2`.
+- `-C`: Use per-title Discord image asset keys based on the title ID, such as `slus20273`. If the title has no ID or if you also provide `-A`, the fallback image asset key is used.
 
-Running as sudo is necessary because `smbstatus` requires it.
+While the program is running you can use the following keys:
+- `c`: Clear the current rich presence. Useful after turning off the PS2, as the PS2 side does not send shutdown packets.
+- `q`: Quit the program. Quitting will also cleanup so there's no need to press C beforehand if you want to quit.
 
 ## Notes
 - Discord client needs to be open and your account logged in for this to work.
 - There's no required order for running the program. You can run this before or after you open Discord as it will automatically detect Discord as needed.
-- Closing Discord while this is running will automatically clear your rich presence status. Opening Discord back up while this is running will automatically set the presence back (if you're still playing a game of course).
-- Same thing applies to OPL too. You can open this program before or after you launched your PS2 game.
-- Opening this program after you launched your PS2 game won't affect the rich presence playing time because this reads the timestamp of when OPL opened the game file.
-  - For example: If you forgot to run this program and you've been playing for an hour already, running it after will automatically set your rich presence and say you've been playing it for an hour.
+- If Discord closes while this is running, Discord drops the status. If Discord comes back, the listener sets the last announced game again unless you cleared it.
+- Every launch announcement replaces the current presence and starts a new timer. Rebooting the PS2 into a new game just updates your presence, no interaction needed on the PC side.
+- The playing time shown in the presence starts when the PC receives the launch announcement. For OPL this is when OPL starts the game. For the disc launcher this is just before the game boots, after the disc and network checks finish.
+- Cover art is opt-in because Discord-RPC only accepts image keys uploaded to your Discord application. `-C` does not download covers. It uses title IDs as image asset keys so you can upload the covers yourself.
+- The disc launcher uses DHCP and subnet broadcast. Run it with a PS2 disc inserted. It reads `SYSTEM.CNF`, announces the disc title ID if the network is ready and then boots the disc. The PC listener resolves the title ID through `ps2_titles.tsv`.
 
 ## Licence
 - GPLv3 for PS2RichPresence.
+- The bundled PS2 title database is generated from PCSX2's GPLv3-compatible `GameIndex.yaml`.
 - MIT for discord-rpc.

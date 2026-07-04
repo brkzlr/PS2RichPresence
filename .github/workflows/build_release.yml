@@ -6,25 +6,99 @@ on:
       - "v*.*"
       - "v*.*.*"
 
+permissions:
+  contents: write
+
 jobs:
-  build:
+  build-linux:
+    name: Build Linux
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Install Dependencies
-        run: | 
-            sudo apt-get update -y
-            sudo apt-get install -y cmake libjson-c-dev
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y build-essential cmake zip
       - name: Build
         run: |
-            export CI_RUNNING=TRUE
-            ./compile.sh
-            cmake --install build
-            cd /opt/PS2RichPresence
-            zip ps2richpresence-linux-x86.zip *
+          export CI_RUNNING=TRUE
+          ./compile.sh
+          cmake --install build --prefix "$PWD/release"
+      - name: Package
+        run: |
+          cd release
+          zip -r ../ps2richpresence-linux-x86_64.zip .
+      - name: Upload Linux Package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ps2richpresence-linux-x86_64
+          path: ps2richpresence-linux-x86_64.zip
+          if-no-files-found: error
+      - name: Upload PS2 ELF
+        uses: actions/upload-artifact@v4
+        with:
+          name: ps2rp-elf
+          path: bin/ps2rp.elf
+          if-no-files-found: error
+
+  build-macos:
+    name: Build macOS (${{ matrix.artifact_suffix }})
+    needs: build-linux
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            artifact_suffix: macos-arm64
+          - runner: macos-15-intel
+            artifact_suffix: macos-x86_64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Build
+        run: |
+          export CI_RUNNING=TRUE
+          ./compile.sh --skip-ps2
+      - name: Download PS2 ELF
+        uses: actions/download-artifact@v4
+        with:
+          name: ps2rp-elf
+          path: ps2rp-elf
+      - name: Install
+        run: |
+          ps2_elf=$(find ps2rp-elf -name ps2rp.elf -type f | head -n 1)
+          test -n "$ps2_elf"
+          cp "$ps2_elf" bin/ps2rp.elf
+          chmod +x bin/ps2rp.elf
+          cmake --install build --prefix "$PWD/release"
+      - name: Package
+        run: |
+          cd release
+          zip -r "../ps2richpresence-${{ matrix.artifact_suffix }}.zip" .
+      - name: Upload macOS Package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ps2richpresence-${{ matrix.artifact_suffix }}
+          path: ps2richpresence-${{ matrix.artifact_suffix }}.zip
+          if-no-files-found: error
+
+  release:
+    name: Release
+    needs:
+      - build-linux
+      - build-macos
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Download Release Assets
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ps2richpresence-*
+          path: release
+          merge-multiple: true
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
           make_latest: true
-          files: /opt/PS2RichPresence/ps2richpresence-linux-x86.zip
+          files: release/*.zip

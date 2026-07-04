@@ -1,5 +1,5 @@
 /*
-    Copyright (C) 2024 brkzlr <brksys@icloud.com>
+    Copyright (C) 2026 brkzlr <brksys@icloud.com>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -14,15 +14,29 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-#ifndef TYPES_H
-#define TYPES_H
 
+#ifndef TITLE_DATABASE_H
+#define TITLE_DATABASE_H
+
+#include <stdbool.h>
 #include <stddef.h>
 
-// Used to reduce realloc calls in SambaReader.
-typedef struct {
-	char* string;
-	size_t bufferSize;
-} string_t;
+#define TITLE_DATABASE_KEY_SIZE 32
 
-#endif // TYPES_H
+typedef struct TitleDatabaseEntry TitleDatabaseEntry;
+
+typedef struct {
+	TitleDatabaseEntry* entries;
+	size_t count;
+	size_t capacity;
+	unsigned int sequence;
+} TitleDatabase;
+
+bool TitleDatabase_LoadFile(TitleDatabase* database, const char* path);
+bool TitleDatabase_Finalize(TitleDatabase* database);
+const char* TitleDatabase_Find(const TitleDatabase* database, const char* titleId);
+void TitleDatabase_Destroy(TitleDatabase* database);
+
+bool TitleDatabase_CompactKey(const char* titleId, char* outKey, size_t outKeySize);
+
+#endif // TITLE_DATABASE_H
