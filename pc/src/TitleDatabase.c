@@ -22,6 +22,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef _WIN32
+#define strdup _strdup
+#endif
+
 struct TitleDatabaseEntry {
 	char* key;
 	char* name;
@@ -108,10 +112,16 @@ bool TitleDatabase_LoadFile(TitleDatabase* database, const char* path)
 		return false;
 	}
 
-	char* line = NULL;
-	size_t lineCapacity = 0;
+	char line[1024];
 	bool ok = true;
-	while (getline(&line, &lineCapacity, file) >= 0) {
+	bool skip = false;
+	while (fgets(line, sizeof(line), file)) {
+		bool more = !strchr(line, '\n') && !feof(file);
+		if (skip) {
+			skip = more;
+			continue;
+		}
+		skip = more;
 		if (line[0] == '#' || line[0] == '\n' || line[0] == '\r') {
 			continue;
 		}
@@ -130,7 +140,7 @@ bool TitleDatabase_LoadFile(TitleDatabase* database, const char* path)
 		}
 	}
 
-	free(line);
+	ok = ok && !ferror(file);
 	fclose(file);
 	return ok;
 }
@@ -153,10 +163,10 @@ static int CompareEntryKeys(const void* lhs, const void* rhs)
 	return strcmp(a->key, b->key);
 }
 
-bool TitleDatabase_Finalize(TitleDatabase* database)
+void TitleDatabase_Finalize(TitleDatabase* database)
 {
 	if (database->count == 0) {
-		return true;
+		return;
 	}
 
 	qsort(database->entries, database->count, sizeof(*database->entries), CompareEntriesForSort);
@@ -181,7 +191,6 @@ bool TitleDatabase_Finalize(TitleDatabase* database)
 		readIndex = groupEnd;
 	}
 	database->count = writeIndex;
-	return true;
 }
 
 const char* TitleDatabase_Find(const TitleDatabase* database, const char* titleId)

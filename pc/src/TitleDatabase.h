@@ -33,7 +33,7 @@ typedef struct {
 } TitleDatabase;
 
 bool TitleDatabase_LoadFile(TitleDatabase* database, const char* path);
-bool TitleDatabase_Finalize(TitleDatabase* database);
+void TitleDatabase_Finalize(TitleDatabase* database);
 const char* TitleDatabase_Find(const TitleDatabase* database, const char* titleId);
 void TitleDatabase_Destroy(TitleDatabase* database);
 

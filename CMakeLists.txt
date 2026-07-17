@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22...3.30)
 project(PS2RichPresence LANGUAGES C)
 
-if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT AND UNIX)
 	set(CMAKE_INSTALL_PREFIX "/opt/PS2RichPresence" CACHE PATH "Install path" FORCE)
 endif()
 
@@ -30,11 +30,17 @@ add_executable(ps2rpc
 target_compile_features(ps2rpc PRIVATE c_std_11)
 set_target_properties(ps2rpc PROPERTIES
 	C_EXTENSIONS OFF
-	RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/bin"
 	INSTALL_RPATH "${PS2RP_INSTALL_RPATH}"
+	MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+	RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/bin"
+	RUNTIME_OUTPUT_DIRECTORY_DEBUG "${PROJECT_SOURCE_DIR}/bin"
+	RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${PROJECT_SOURCE_DIR}/bin"
+	RUNTIME_OUTPUT_DIRECTORY_RELEASE "${PROJECT_SOURCE_DIR}/bin"
+	RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${PROJECT_SOURCE_DIR}/bin"
 )
-
-target_compile_definitions(ps2rpc PRIVATE _XOPEN_SOURCE=700) # For POSIX sockets, poll, termios and strdup
+if(UNIX)
+	target_compile_definitions(ps2rpc PRIVATE _XOPEN_SOURCE=700) # POSIX APIs
+endif()
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
 	target_compile_options(ps2rpc PRIVATE -pedantic-errors)
 endif()
@@ -47,7 +53,7 @@ if(APPLE)
 	target_compile_definitions(ps2rpc PRIVATE _DARWIN_C_SOURCE)
 endif()
 
-find_path(DISCORD_RPC_INCLUDE_DIR Discord/discord_rpc.h
+find_path(DISCORD_RPC_INCLUDE_DIR discord_rpc.h
 	REQUIRED
 	PATHS ${PS2RP_DEPENDENCY_INCLUDE_DIRS}
 	NO_DEFAULT_PATH
@@ -64,12 +70,20 @@ find_library(DISCORD_RPC_LIBRARY discord-rpc
 	NO_DEFAULT_PATH
 	NO_CACHE
 )
-add_library(discordRpc SHARED IMPORTED)
-set_target_properties(discordRpc PROPERTIES
-	IMPORTED_LOCATION "${DISCORD_RPC_LIBRARY}"
-)
-
-target_link_libraries(ps2rpc PRIVATE discordRpc)
+if(WIN32)
+	find_file(DISCORD_RPC_RUNTIME_LIBRARY
+		NAMES discord-rpc.dll libdiscord-rpc.dll
+		REQUIRED
+		PATHS "${PROJECT_SOURCE_DIR}/bin"
+		NO_DEFAULT_PATH
+		NO_CACHE
+	)
+	target_compile_definitions(ps2rpc PRIVATE DISCORD_DYNAMIC_LIB)
+	target_link_libraries(ps2rpc PRIVATE "${DISCORD_RPC_LIBRARY}" ws2_32)
+else()
+	set(DISCORD_RPC_RUNTIME_LIBRARY "${DISCORD_RPC_LIBRARY}")
+	target_link_libraries(ps2rpc PRIVATE "${DISCORD_RPC_LIBRARY}")
+endif()
 
 add_custom_command(
 	OUTPUT "${PS2RP_RUNTIME_TITLE_DB}"
@@ -89,13 +103,10 @@ install(TARGETS ps2rpc
 	RUNTIME
 		DESTINATION "."
 )
-install(IMPORTED_RUNTIME_ARTIFACTS discordRpc
-	RUNTIME
-		DESTINATION "."
-	LIBRARY
-		DESTINATION "."
-)
-install(FILES "${PS2RP_TITLE_DB}"
+install(FILES
+	"${DISCORD_RPC_RUNTIME_LIBRARY}"
+	"${PS2RP_TITLE_DB}"
+	"${PROJECT_SOURCE_DIR}/LICENSE.txt"
 	DESTINATION "."
 )
 install(FILES "${PROJECT_SOURCE_DIR}/bin/ps2rp.elf"

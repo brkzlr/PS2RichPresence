@@ -84,11 +84,41 @@ jobs:
           path: ps2richpresence-${{ matrix.artifact_suffix }}.zip
           if-no-files-found: error
 
+  build-windows:
+    name: Build Windows (x86_64)
+    needs: build-linux
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Build PC Receiver
+        run: ./compile.ps1
+      - name: Download PS2 ELF
+        uses: actions/download-artifact@v4
+        with:
+          name: ps2rp-elf
+          path: bin
+      - name: Install and Verify
+        run: |
+          cmake --install build --config Release --prefix "$PWD/release"
+          if ($LASTEXITCODE) { throw "Windows install failed." }
+          Get-Item release/ps2rpc.exe, release/discord-rpc.dll, release/ps2_titles.tsv, release/ps2rp.elf, release/LICENSE.txt -ErrorAction Stop | Out-Null
+          & ./release/ps2rpc.exe --help
+          if ($LASTEXITCODE) { throw "Packaged Windows receiver smoke test failed." }
+          Compress-Archive -Path release/* -DestinationPath ps2richpresence-windows-x86_64.zip
+      - name: Upload Windows Package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ps2richpresence-windows-x86_64
+          path: ps2richpresence-windows-x86_64.zip
+          if-no-files-found: error
+
   release:
     name: Release
     needs:
       - build-linux
       - build-macos
+      - build-windows
     runs-on: ubuntu-22.04
     steps:
       - name: Download Release Assets

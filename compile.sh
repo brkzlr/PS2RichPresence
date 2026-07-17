@@ -91,7 +91,7 @@ Darwin)
 	DISCORD_LIBRARY="$ROOT_DIR/lib/libdiscord-rpc.so"
 	;;
 esac
-DISCORD_HEADER="$ROOT_DIR/include/Discord/discord_rpc.h"
+DISCORD_HEADER="$ROOT_DIR/include/discord_rpc.h"
 
 if [[ ! -f "$DISCORD_HEADER" || ! -f "$DISCORD_LIBRARY" ]]; then
 	printf '\n==> Building discord-rpc\n'
@@ -102,14 +102,9 @@ if [[ ! -f "$DISCORD_HEADER" || ! -f "$DISCORD_LIBRARY" ]]; then
 		-DCMAKE_BUILD_TYPE=Release \
 		-DCMAKE_INSTALL_PREFIX="$ROOT_DIR" \
 		-DBUILD_SHARED_LIBS=ON \
-		-DBUILD_EXAMPLES=OFF
+		-DBUILD_EXAMPLES=OFF \
+		-DCLANG_FORMAT_CMD=
 	cmake --build "$ROOT_DIR/extern/discord-rpc/build" --config Release --target install
-
-	mkdir -p "$ROOT_DIR/include/Discord"
-	for header in "$ROOT_DIR"/include/discord_*.h; do
-		[[ -e "$header" ]] || continue
-		mv -f "$header" "$ROOT_DIR/include/Discord/"
-	done
 
 	if [[ ! -f "$DISCORD_HEADER" || ! -f "$DISCORD_LIBRARY" ]]; then
 		printf 'discord-rpc did not install the expected header/library.\n' >&2
